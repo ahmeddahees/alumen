@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حاسبة ورشة الألوميتال | حساب أعواد الشاسيه والدرف مع الأرفف المخصصة</title>
+    <!-- PWA & Mobile Web App Meta -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ألوميتال">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <!-- Google Fonts: Cairo & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Outfit:wght@500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Top Workshop Navbar -->
+    <header class="app-header">
+        <div class="header-inner">
+            <div class="brand">
+                <div class="brand-badge">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <line x1="3" y1="9" x2="21" y2="9"/>
+                        <line x1="9" y1="21" x2="9" y2="9"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1>حاسبة ورشة <span class="accent-text">الألوميتال</span></h1>
+                    <p class="subtitle">حساب أعواد الشاسيه والدرف بشكل منفصل | أرفف بمقاسات مختلفة | معادلات الدرف (مقبض خارجي / بلت إن)</p>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button type="button" class="btn btn-outline" id="printJobBtn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <rect x="6" y="14" width="12" height="8"></rect>
+                    </svg>
+                    <span>طباعة أمر التقطيع</span>
+                </button>
+                <button type="button" class="btn btn-outline" id="saveProjectBtn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    <span>حفظ المطبخ</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container main-layout">
+        <!-- Sidebar / Settings & Inputs -->
+        <aside class="sidebar-section">
+            <!-- 1. إعدادات أعواد الألومنيوم -->
+            <div class="card settings-card">
+                <div class="card-title">
+                    <span class="icon">⚙️</span>
+                    <h3>أطوال أعواد الألومنيوم بالورشة</h3>
+                </div>
+
+                <!-- طول عود الشاسيه -->
+                <div class="form-group">
+                    <label class="label-heading">🪵 طول عود شاسيه المطبخ:</label>
+                    <div class="stock-pill-selector" id="chassisStockSelector">
+                        <button type="button" class="pill-btn active" data-type="chassis" data-length="600">6.0 م (600 سم)</button>
+                        <button type="button" class="pill-btn" data-type="chassis" data-length="650">6.5 م (650 سم)</button>
+                        <button type="button" class="pill-btn" data-type="chassis" id="customChassisPill">مخصص</button>
+                    </div>
+                    <div class="custom-stock-box" id="customChassisBox" style="display: none;">
+                        <input type="number" id="customChassisInput" value="600" min="100" max="1000" step="5">
+                        <span class="unit-badge">سم</span>
+                    </div>
+                </div>
+
+                <!-- طول عود قطاع الضلفة المنفصل -->
+                <div class="form-group">
+                    <label class="label-heading">🚪 طول عود قطاع الضلفة (مخصص للدرف):</label>
+                    <div class="stock-pill-selector" id="doorStockSelector">
+                        <button type="button" class="pill-btn active" data-type="door" data-length="600">6.0 م (600 سم)</button>
+                        <button type="button" class="pill-btn" data-type="door" data-length="650">6.5 م (650 سم)</button>
+                        <button type="button" class="pill-btn" data-type="door" id="customDoorPill">مخصص</button>
+                    </div>
+                    <div class="custom-stock-box" id="customDoorBox" style="display: none;">
+                        <input type="number" id="customDoorInput" value="600" min="100" max="1000" step="5">
+                        <span class="unit-badge">سم</span>
+                    </div>
+                </div>
+
+                <div class="grid-2-cols">
+                    <div class="form-group">
+                        <label for="bladeKerfInput" title="الفاقد الذي يأكله سلاح المنشار عند كل قصة">
+                            سمك سلاح المنشار:
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="bladeKerfInput" value="0.4" min="0" max="2" step="0.1">
+                            <span class="unit-badge">سم</span>
+                        </div>
+                        <small class="field-hint">4 مم = 0.4 سم</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profileDeductionInput" title="خصم سماكة القطاع عند زوايا التجميع">
+                            خصم التجميع / القطاع:
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="profileDeductionInput" value="0" min="0" max="10" step="0.5">
+                            <span class="unit-badge">سم</span>
+                        </div>
+                        <small class="field-hint">اتركه 0 إذا مقاسك خارجي</small>
+                    </div>
+                </div>
+
+                <div class="form-group client-name-group">
+                    <label for="clientNameInput">اسم العميل / رقم الطلب:</label>
+                    <input type="text" id="clientNameInput" placeholder="مثال: مطبخ الأستاذ أحمد" class="form-control">
+                </div>
+            </div>
+
+            <!-- 2. قوالب سريعة جاهزة -->
+            <div class="card templates-card">
+                <div class="card-title">
+                    <span class="icon">⚡</span>
+                    <h3>إضافة سريعة بنقرة واحدة</h3>
+                </div>
+                <div class="templates-grid">
+                    <button type="button" class="quick-template-btn" data-type="lower-std">
+                        <span class="tpl-icon">🗄️</span>
+                        <span class="tpl-title">علبة سفلية درفتين</span>
+                        <span class="tpl-desc">80 عرض × 85 ارتفاع × 60 عمق (رف + درفتين)</span>
+                    </button>
+                    <button type="button" class="quick-template-btn" data-type="sink">
+                        <span class="tpl-icon">🚿</span>
+                        <span class="tpl-title">علبة حوض سفلية</span>
+                        <span class="tpl-desc">100 عرض × 85 ارتفاع × 60 عمق (بدون رف + درفتين)</span>
+                    </button>
+                    <button type="button" class="quick-template-btn" data-type="upper-std">
+                        <span class="tpl-icon">🍽️</span>
+                        <span class="tpl-title">علبة علوية أرفف مختلفة</span>
+                        <span class="tpl-desc">90 عرض × 70 ارتفاع × 35 عمق (رفين بمقاسين)</span>
+                    </button>
+                    <button type="button" class="quick-template-btn" data-type="partition-std">
+                        <span class="tpl-icon">🚪</span>
+                        <span class="tpl-title">علبة فاصل رأسي (3 درف)</span>
+                        <span class="tpl-desc">120 عرض × 85 ارتفاع × 60 عمق (فاصل + 3 درف)</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-section">
+            <!-- Cabinets Header Bar -->
+            <div class="section-header">
+                <div>
+                    <h2>علب ووحدات المطبخ (<span id="unitsCountBadge">0</span>)</h2>
+                    <p>حدد أبعاد كل علبة، أضف الأرفف بمقاسات مختلفة، والضلف بمعادلات الارتفاع والعرض</p>
+                </div>
+                <div class="section-actions">
+                    <button type="button" class="btn btn-primary" id="addUnitBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>إضافة علبة جديدة</span>
+                    </button>
+                    <button type="button" class="btn btn-danger-soft" id="clearAllUnitsBtn" title="تفريغ جميع العلب">
+                        مسح الكل
+                    </button>
+                </div>
+            </div>
+
+            <!-- Units List Container -->
+            <div class="units-container" id="unitsContainer">
+                <!-- Dynamically Rendered Unit Cards -->
+            </div>
+
+            <!-- Optimization & Results Dashboard -->
+            <section class="results-wrapper" id="resultsSection">
+                <div class="results-header-banner">
+                    <div class="banner-badge">النتيجة النهائية لأمر الشغل</div>
+                    <h2>📊 إجمالي الأعواد المطلوبة ومخطط التقطيع</h2>
+                </div>
+
+                <!-- Summary Badges Grid (Separated Chassis vs Doors) -->
+                <div class="summary-cards-grid">
+                    <!-- عود الشاسيه -->
+                    <div class="summary-card highlight-gold">
+                        <div class="sc-icon">🪵</div>
+                        <div class="sc-content">
+                            <span class="sc-label">أعواد شاسيه المطبخ</span>
+                            <span class="sc-value" id="chassisBarsDisplay">0</span>
+                            <span class="sc-sub" id="chassisStockSub">عود بطول 6.0 متر</span>
+                        </div>
+                    </div>
+
+                    <!-- عود الضلف -->
+                    <div class="summary-card highlight-cyan">
+                        <div class="sc-icon">🚪</div>
+                        <div class="sc-content">
+                            <span class="sc-label">أعواد قطاع الضلف</span>
+                            <span class="sc-value" id="doorBarsDisplay">0</span>
+                            <span class="sc-sub" id="doorStockSub">عود بطول 6.0 متر</span>
+                        </div>
+                    </div>
+
+                    <!-- إجمالي الأمتار الصافية -->
+                    <div class="summary-card">
+                        <div class="sc-icon">📐</div>
+                        <div class="sc-content">
+                            <span class="sc-label">إجمالي الأمتار الصافية</span>
+                            <span class="sc-value"><span id="totalUsedMetersDisplay">0.00</span> م</span>
+                            <span class="sc-sub">شاسيه: <span id="chassisMetersSub">0</span>م | ضلف: <span id="doorMetersSub">0</span>م</span>
+                        </div>
+                    </div>
+
+                    <!-- الهالك والاستغلال -->
+                    <div class="summary-card">
+                        <div class="sc-icon">♻️</div>
+                        <div class="sc-content">
+                            <span class="sc-label">نسبة الاستغلال الإجمالية</span>
+                            <span class="sc-value" id="efficiencyDisplay">0%</span>
+                            <span class="sc-sub">هالك الشاسيه: <span id="chassisWasteSub">0</span>م | الضلف: <span id="doorWasteSub">0</span>م</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs: Chassis Plan vs Doors Plan vs Grouped Table -->
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button type="button" class="tab-btn active" data-tab="chassisPlanTab">
+                            🪵 مخطط أعواد الشاسيه (<span id="chassisBarsTabBadge">0</span>)
+                        </button>
+                        <button type="button" class="tab-btn" data-tab="doorsPlanTab">
+                            🚪 مخطط أعواد الضلف (<span id="doorBarsTabBadge">0</span>)
+                        </button>
+                        <button type="button" class="tab-btn" data-tab="cutTableTab">
+                            📋 جدول تجميع المقاسات للقص السريع
+                        </button>
+                    </div>
+
+                    <!-- Tab 1: Visual Chassis Bars Layout -->
+                    <div class="tab-content active" id="chassisPlanTab">
+                        <div class="bars-legend">
+                            <span class="legend-item"><span class="color-dot col-height"></span> قوائم (ارتفاع)</span>
+                            <span class="legend-item"><span class="color-dot col-width"></span> عوارض (عرض)</span>
+                            <span class="legend-item"><span class="color-dot col-depth"></span> أعماق (عمق)</span>
+                            <span class="legend-item"><span class="color-dot col-shelves"></span> أرفف مخصصة</span>
+                            <span class="legend-item"><span class="color-dot col-waste"></span> السقاطة / المتبقي</span>
+                        </div>
+                        <div class="bars-list" id="chassisBarsListContainer">
+                            <!-- Visual Chassis Bars Injected Here -->
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Visual Doors Bars Layout -->
+                    <div class="tab-content" id="doorsPlanTab">
+                        <div class="bars-legend">
+                            <span class="legend-item"><span class="color-dot col-door-vert"></span> قوائم الدرف (الارتفاع)</span>
+                            <span class="legend-item"><span class="color-dot col-door-horiz"></span> عوارض الدرف (عرض الرف + 2.3 سم)</span>
+                            <span class="legend-item"><span class="color-dot col-waste"></span> السقاطة / المتبقي</span>
+                        </div>
+                        <div class="bars-list" id="doorsBarsListContainer">
+                            <!-- Visual Door Bars Injected Here -->
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Grouped Cutting Table -->
+                    <div class="tab-content" id="cutTableTab">
+                        <div class="table-responsive">
+                            <table class="cutting-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>الطول (سم)</th>
+                                        <th>القسم والقطاع</th>
+                                        <th>النوع والاستخدام</th>
+                                        <th>الكمية (قطع)</th>
+                                        <th>إجمالي الطول (متر)</th>
+                                        <th>العلب المستفيدة</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cuttingTableBody">
+                                    <!-- Rows Injected Here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Printable Job Sheet (Visible Only During Print) -->
+    <div id="printSheet" class="print-only-sheet">
+        <div class="print-header">
+            <div>
+                <h1>أمر تشغيل وتقطيع مطبخ ألوميتال</h1>
+                <p>تاريخ الأمر: <span id="printDate"></span> | العميل: <span id="printClientName">---</span></p>
+            </div>
+            <div class="print-totals">
+                <h2>أعواد الشاسيه: <span id="printChassisBars">0</span> عود (<span id="printChassisLen">600</span> سم)</h2>
+                <h2>أعواد الضلف: <span id="printDoorBars">0</span> عود (<span id="printDoorLen">600</span> سم)</h2>
+            </div>
+        </div>
+
+        <div class="print-section-title">1. قائمة علب المطبخ وأبعادها وتفصيل الأرفف والدرف</div>
+        <table class="print-table" id="printUnitsTable">
+            <thead>
+                <tr>
+                    <th>العلبة</th>
+                    <th>العرض × الارتفاع × العمق</th>
+                    <th>ارتفاع الفاصل</th>
+                    <th>فواصل</th>
+                    <th>الأرفف المخصصة (العرض × العمق)</th>
+                    <th>الضلف (المقاس المحسوب ونوع المقبض)</th>
+                    <th>العدد</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <div class="print-section-title">2. جدول مقاسات التقطيع المجمع (شاسيه + ضلف)</div>
+        <table class="print-table" id="printCutsTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>طول القطعة (سم)</th>
+                    <th>نوع العود المستخدم</th>
+                    <th>الاستخدام</th>
+                    <th>الكمية المطلوبة</th>
+                    <th>العلب</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <div class="print-section-title">3. خطة تقطيع أعواد الشاسيه (عود بعود)</div>
+        <div id="printChassisBarsPlan"></div>
+
+        <div class="print-section-title">4. خطة تقطيع أعواد قطاع الضلف (عود بعود)</div>
+        <div id="printDoorBarsPlan"></div>
+
+        <div class="print-footer">
+            <p>تم استخراج أمر التشغيل عبر حاسبة ورشة الألوميتال - التوقيع والملاحظات: ______________________</p>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Scripts -->
+    <script src="js/calculator.js"></script>
+    <script src="js/optimizer.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            });
+        }
+    </script>
+</body>
+</html>
