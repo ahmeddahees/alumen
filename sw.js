@@ -1,5 +1,5 @@
 // Service Worker for Aluminum Kitchen Workshop App
-const CACHE_NAME = 'aluminum-workshop-v1';
+const CACHE_NAME = 'aluminum-workshop-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

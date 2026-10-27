@@ -13,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
         clientName: "",
         units: []
     };
+    const drawerStockLength = 600;
 
     // --- DOM Elements ---
     const unitsContainer = document.getElementById("unitsContainer");
@@ -44,14 +45,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const efficiencyDisplay = document.getElementById("efficiencyDisplay");
     const chassisWasteSub = document.getElementById("chassisWasteSub");
     const doorWasteSub = document.getElementById("doorWasteSub");
+    const drawerBarsDisplay = document.getElementById("drawerBarsDisplay");
+    const drawerStockSub = document.getElementById("drawerStockSub");
+    const drawerMetersSub = document.getElementById("drawerMetersSub");
+    const drawerWasteSub = document.getElementById("drawerWasteSub");
 
     // Badges in Tabs
     const chassisBarsTabBadge = document.getElementById("chassisBarsTabBadge");
     const doorBarsTabBadge = document.getElementById("doorBarsTabBadge");
+    const drawerBarsTabBadge = document.getElementById("drawerBarsTabBadge");
     
     // Results Displays
     const chassisBarsListContainer = document.getElementById("chassisBarsListContainer");
     const doorsBarsListContainer = document.getElementById("doorsBarsListContainer");
+    const drawerBarsListContainer = document.getElementById("drawerBarsListContainer");
     const cuttingTableBody = document.getElementById("cuttingTableBody");
     const toast = document.getElementById("toast");
     
@@ -62,6 +69,89 @@ document.addEventListener("DOMContentLoaded", () => {
     // Print Elements
     const printJobBtn = document.getElementById("printJobBtn");
     const saveProjectBtn = document.getElementById("saveProjectBtn");
+
+    // Calculation Action Elements (أوبشن احسب عدد الأعواد)
+    const calculateAllBtn = document.getElementById("calculateAllBtn");
+    const headerCalculateBtn = document.getElementById("headerCalculateBtn");
+    const mobileCalculateBtn = document.getElementById("mobileCalculateBtn");
+    const mobileAddUnitBtn = document.getElementById("mobileAddUnitBtn");
+    const mobileUnitsCountBadge = document.getElementById("mobileUnitsCountBadge");
+    const calcActionBanner = document.getElementById("calcActionBanner");
+    const calcUnitsCountBadge = document.getElementById("calcUnitsCountBadge");
+    const calcStatusIndicator = document.getElementById("calcStatusIndicator");
+    const calcStatusText = document.getElementById("calcStatusText");
+
+    let calculationPending = false;
+
+    function updateCalcUnitsBadge() {
+        const count = state.units ? state.units.length : 0;
+        if (calcUnitsCountBadge) {
+            calcUnitsCountBadge.textContent = `${count} علبة`;
+        }
+        if (mobileUnitsCountBadge) {
+            mobileUnitsCountBadge.textContent = `${count}`;
+        }
+    }
+
+    function markCalculationPending(message) {
+        calculationPending = true;
+        updateCalcUnitsBadge();
+        if (calcStatusIndicator) calcStatusIndicator.classList.add("pending");
+        if (calcStatusText) calcStatusText.textContent = message || "توجد تعديلات - اضغط احسب لتحديث النتائج";
+        if (calcActionBanner) calcActionBanner.classList.add("needs-calc");
+        if (headerCalculateBtn) headerCalculateBtn.classList.add("needs-calc");
+        if (mobileCalculateBtn) mobileCalculateBtn.classList.add("needs-calc");
+    }
+
+    function markCalculationFresh() {
+        calculationPending = false;
+        updateCalcUnitsBadge();
+        if (calcStatusIndicator) calcStatusIndicator.classList.remove("pending");
+        if (calcStatusText) calcStatusText.textContent = "تم الحساب بنجاح ✓";
+        if (calcActionBanner) calcActionBanner.classList.remove("needs-calc");
+        if (headerCalculateBtn) headerCalculateBtn.classList.remove("needs-calc");
+        if (mobileCalculateBtn) mobileCalculateBtn.classList.remove("needs-calc");
+    }
+
+    function doCalculateAll(scroll = true) {
+        if (!state.units || state.units.length === 0) {
+            showToast("⚠️ الرجاء إضافة علبة واحدة على الأقل أولاً");
+            return;
+        }
+        const invalidDrawerUnit = state.units.find(unit =>
+            unit.unitType !== "upper" &&
+            unit.hasDrawers &&
+            (!Number.isFinite(parseFloat(unit.drawerOpeningWidth)) || parseFloat(unit.drawerOpeningWidth) < 2.6)
+        );
+        if (invalidDrawerUnit) {
+            showToast(`⚠️ أدخل عرض فتحة الأدراج في: ${invalidDrawerUnit.name}`);
+            return;
+        }
+        recalculateAll();
+        markCalculationFresh();
+        showToast("✓ تم حساب عدد الأعواد ومخطط التقطيع بنجاح!");
+        if (scroll) {
+            const resSec = document.getElementById("resultsSection");
+            if (resSec) {
+                resSec.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }
+    }
+
+    if (calculateAllBtn) {
+        calculateAllBtn.addEventListener("click", () => doCalculateAll(true));
+    }
+    if (headerCalculateBtn) {
+        headerCalculateBtn.addEventListener("click", () => doCalculateAll(true));
+    }
+    if (mobileCalculateBtn) {
+        mobileCalculateBtn.addEventListener("click", () => doCalculateAll(true));
+    }
+    if (mobileAddUnitBtn) {
+        mobileAddUnitBtn.addEventListener("click", () => {
+            if (addUnitBtn) addUnitBtn.click();
+        });
+    }
 
     function showToast(message, duration = 3000) {
         toast.textContent = message;
@@ -80,7 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!state.units || state.units.length === 0) {
-            // العينة 1: علبة 200 سم علوية بمطبقية 70 سم (مثال المعلم الحرفي المباشر!)
+            // العينة 1: علبة 200 سم علوية بمطبقية 70 سم
             const unit1 = {
                 id: "u_" + Date.now() + "_1",
                 name: "علبة علوية 200سم بمطبقية 70سم (مثال المعلم)",
@@ -91,26 +181,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 width: 200,
                 height: 80,
                 depth: 35,
+                partitions: 2,              // فاصلين
                 shelfTiers: 1,
                 handleType: "external",     // مقبض خارجي (+3 سم)
-                autoDoorSplit45: true,
+                autoDoorSplit45: false,
                 quantity: 1
             };
             autoCalculateUnitDivisions(unit1);
 
-            // العينة 2: علبة سفلية 100 سم مقسومة نصين
+            // العينة 2: علبة سفلية 100 سم بفاصل رأسي يدوي (1 فاصل)
             const unit2 = {
                 id: "u_" + Date.now() + "_2",
-                name: "علبة سفلية 100سم مقسومة نصين",
+                name: "علبة سفلية 100سم بفاصل رأسي",
                 unitType: "lower",          // وحدة تحت (سفلي)
                 hasDishRack: false,
                 width: 100,
                 height: 85,
                 depth: 60,
-                divisionMode: "2",          // نصين فاصل 1
+                partitions: 1,              // فاصل يدوي 1
                 shelfTiers: 1,
                 handleType: "external",
-                autoDoorSplit45: true,
+                autoDoorSplit45: false,
                 quantity: 1
             };
             autoCalculateUnitDivisions(unit2);
@@ -118,6 +209,19 @@ document.addEventListener("DOMContentLoaded", () => {
             state.units = [unit1, unit2];
         } else {
             state.units.forEach(u => {
+                if (u.autoDoorSplit45 !== false) {
+                    u.autoDoorSplit45 = false;
+                    (u.doorsList || []).forEach(door => {
+                        if (door.sectionKey) delete door.customSplitMode;
+                    });
+                }
+                if (u.partitions === undefined || u.partitions === null) {
+                    if (u.divisionMode === "2" || u.divisionMode === "1/3_2/3") u.partitions = 1;
+                    else if (u.divisionMode === "3") u.partitions = 2;
+                    else if (u.divisionMode === "4") u.partitions = 3;
+                    else u.partitions = 0;
+                }
+                delete u.divisionMode;
                 autoCalculateUnitDivisions(u);
             });
         }
@@ -127,6 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
         clientNameInput.value = state.clientName || "";
         updateChassisStockUI(state.chassisStockLength);
         updateDoorStockUI(state.doorStockLength);
+        updateCalcUnitsBadge();
     }
 
     function saveState() {
@@ -234,21 +339,19 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // إذا كانت العلبة بدون أرفف ولكنها مقسمة (مثل علبة الحوض) نولد الضلف بناءً على فتحات التقسيم
-        if (sectionsMap.size === 0 && unit.divisionMode && unit.divisionMode !== "manual" && (!unit.unitType || unit.unitType !== "upper" || !unit.hasDishRack)) {
-            const N = parseInt(unit.divisionMode) || (unit.divisionMode === "1/3_2/3" ? 2 : 1);
-            if (unit.divisionMode === "1/3_2/3") {
-                const netInsideWidth = Math.max(0, parseFloat(unit.width || 0) - (3 * d));
-                const wThird = Math.round((netInsideWidth / 3.0) * 100) / 100;
-                const wTwoThirds = Math.round((2.0 * netInsideWidth / 3.0) * 100) / 100;
-                sectionsMap.set("sec_third", { key: "sec_third", label: "قسم التلت", width: wThird, shelfIds: [] });
-                sectionsMap.set("sec_twothirds", { key: "sec_twothirds", label: "قسم التلتين", width: wTwoThirds, shelfIds: [] });
-            } else {
-                const netInsideWidth = Math.max(0, parseFloat(unit.width || 0) - (2 * d) - ((N - 1) * d));
-                const secW = Math.round((netInsideWidth / N) * 100) / 100;
-                for (let s = 1; s <= N; s++) {
-                    sectionsMap.set(`sec_${s}`, { key: `sec_${s}`, label: `خانة #${s}`, width: secW, shelfIds: [] });
-                }
+        // إذا كانت العلبة بدون أرفف مضافة، نولد الضلف بناءً على عدد الفواصل اليدوية
+        if (sectionsMap.size === 0 && (!unit.unitType || unit.unitType !== "upper" || !unit.hasDishRack)) {
+            const P = Math.max(0, parseInt(unit.partitions) || 0);
+            const N = P + 1; // عدد الخانات الناتجة
+            const netInsideWidth = Math.max(0, parseFloat(unit.width || 0) - (2 * d) - (P * d));
+            const secW = Math.round((netInsideWidth / N) * 100) / 100;
+            for (let s = 1; s <= N; s++) {
+                sectionsMap.set(`sec_part_${s}`, {
+                    key: `sec_part_${s}`,
+                    label: N > 1 ? `خانة #${s}` : `كامل العلبة`,
+                    width: secW,
+                    shelfIds: []
+                });
             }
         }
 
@@ -271,7 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     customSplitMode: override || (autoSplit && rawDoorW > 45.0 ? "double" : "single"),
                     sourceLabel: `${cleanLabel} (عرض الرف ${sWidth} سم)`,
                     shelfWidth: sWidth,
-                    finalWidth: splitW,
+                    finalWidth: (existingDoorProps[id1] && existingDoorProps[id1].finalWidth) || splitW,
                     handleType: (existingDoorProps[id1] && existingDoorProps[id1].handleType) || hType,
                     isSplit: true,
                     sectionLabel: `${cleanLabel} (درفة 1 من 2)`,
@@ -284,7 +387,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     customSplitMode: override || (autoSplit && rawDoorW > 45.0 ? "double" : "single"),
                     sourceLabel: `${cleanLabel} (عرض الرف ${sWidth} سم)`,
                     shelfWidth: sWidth,
-                    finalWidth: splitW,
+                    finalWidth: (existingDoorProps[id2] && existingDoorProps[id2].finalWidth) || splitW,
                     handleType: (existingDoorProps[id2] && existingDoorProps[id2].handleType) || hType,
                     isSplit: true,
                     sectionLabel: `${cleanLabel} (درفة 2 من 2)`,
@@ -301,7 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     customSplitMode: override || "single",
                     sourceLabel: `${cleanLabel} (عرض الرف ${sWidth} سم)`,
                     shelfWidth: sWidth,
-                    finalWidth: rawDoorW,
+                    finalWidth: (existingDoorProps[id1] && existingDoorProps[id1].finalWidth) || rawDoorW,
                     handleType: (existingDoorProps[id1] && existingDoorProps[id1].handleType) || hType,
                     isSplit: false,
                     sectionLabel: `${cleanLabel} (درفة مفردة)`,
@@ -324,41 +427,7 @@ document.addEventListener("DOMContentLoaded", () => {
         unit.doorsList = newDoors;
     }
 
-    // --- دالة الحساب التلقائي للفواصل الرأسية ---
-    // القاعدة: كل رفين بينهما فاصل (2 أرفف = 1 فاصل، 3 أرفف = 2 فاصل)، والمطبقية تعامل كرف في حساب الفاصل
-    function calculateAutomaticPartitions(unit) {
-        // 1. حساب عدد أقسام الأرفف الأفقية (الخانات)
-        const uniqueSections = new Set();
-        (unit.shelvesList || []).forEach((s, idx) => {
-            const secKey = s.sectionId || `sec_custom_${s.id || idx}`;
-            uniqueSections.add(secKey);
-        });
-
-        let shelfSectionsCount = uniqueSections.size;
-
-        // في حال كانت العلبة بدون أرفف (مثلاً علبة حوض أو طبقات = 0) ولكن تم اختيار تقسيم ذكي
-        if (shelfSectionsCount === 0 && unit.divisionMode && unit.divisionMode !== "manual") {
-            if (unit.divisionMode === "1/3_2/3") {
-                shelfSectionsCount = 2;
-            } else {
-                shelfSectionsCount = parseInt(unit.divisionMode) || 1;
-            }
-        }
-
-        // 2. هل يوجد مطبقية في العلبة العلوية؟
-        const hasRack = (unit.unitType === "upper" && unit.hasDishRack);
-
-        // المطبقية تعامل كأنها رف (خانة) في حساب الفواصل
-        let totalSections = shelfSectionsCount;
-        if (hasRack) {
-            totalSections += 1;
-        }
-
-        // عدد الفواصل = عدد الخانات - 1 (بحد أدنى 0)
-        return Math.max(0, totalSections - 1);
-    }
-
-    // --- دالة التقسيم التلقائي الذكي وحساب المطبقية ---
+    // --- دالة حساب أبعاد العلبة والفواصل يدوياً وحساب المطبقية ---
     function autoCalculateUnitDivisions(unit) {
         const d = parseFloat(state.profileDeduction || 0);
         const W = parseFloat(unit.width || 0);
@@ -367,8 +436,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const tiers = unit.shelfTiers !== undefined ? parseInt(unit.shelfTiers) : 1;
         const shelfDepth = D; // العمق ثابت = عمق الوحدة
 
+        // تأكيد عدد الفواصل الرأسية (يدوي)
+        if (unit.partitions === undefined || unit.partitions === null) {
+            unit.partitions = 0;
+        }
+        unit.partitions = Math.max(0, parseInt(unit.partitions) || 0);
+
         // القاعدة المعتمدة: ارتفاع الفاصل = الارتفاع الكلي - (خصم التجميع × 2)
-        unit.partitionHeight = Math.max(0, H - (d * 2));
+        if (unit.partitionHeight === undefined || unit.partitionHeight === null || unit.partitionHeight === "") {
+            unit.partitionHeight = Math.max(0, H - (d * 2));
+        }
 
         // ==============================================================
         // الحالة الأولى: وحدة علوية (فوق) وبها مطبقية
@@ -387,12 +464,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const remainInsideWidth = Math.max(0, netOuterInside - rackTotalReserved);
 
             const remainMode = unit.dishRackRemainMode || "third_twothirds";
-            let addPartitions = 0;
             let remainSections = [];
 
             if (remainMode === "third_twothirds") {
-                // ثلث وثلثين للمتبقي بفاصل 1 إضافي
-                addPartitions = 1;
                 const netRemain = Math.max(0, remainInsideWidth - d);
                 const wThird = Math.round((netRemain / 3.0) * 100) / 100;
                 const wTwoThirds = Math.round((2.0 * netRemain / 3.0) * 100) / 100;
@@ -401,8 +475,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     { secId: "sec_rem_twothirds", width: wTwoThirds, label: "قسم التلتين" }
                 ];
             } else if (remainMode === "half") {
-                // نصفين للمتبقي بفاصل 1 إضافي
-                addPartitions = 1;
                 const netRemain = Math.max(0, remainInsideWidth - d);
                 const halfW = Math.round((netRemain / 2.0) * 100) / 100;
                 remainSections = [
@@ -410,8 +482,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     { secId: "sec_rem_half_2", width: halfW, label: "نصف المتبقي (2)" }
                 ];
             } else if (remainMode === "three") {
-                // 3 خانات متساوية بفاصلين إضافيين
-                addPartitions = 2;
                 const netRemain = Math.max(0, remainInsideWidth - (2 * d));
                 const secW = Math.round((netRemain / 3.0) * 100) / 100;
                 remainSections = [
@@ -420,7 +490,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     { secId: "sec_rem_3_3", width: secW, label: "خانة متبقي (3)" }
                 ];
             } else if (remainMode === "custom") {
-                // مخصص: يتيح للصنايعي التحكم اليدوي الكامل في أرفف وضلف وفواصل الجزء المتبقي
                 if (!unit.shelvesList || unit.shelvesList.length === 0) {
                     unit.shelvesList = [{
                         id: `s_rem_custom_${Date.now()}`,
@@ -435,8 +504,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (!s.sectionId) s.sectionId = `sec_rem_custom_${s.id || sIdx}`;
                     });
                 }
-                // حساب الفواصل تلقائياً: خانة المطبقية (1) + خانات الأرفف المتبقية - 1
-                unit.partitions = calculateAutomaticPartitions(unit);
                 syncUnitDoorsFromShelves(unit);
                 unit.calcMeta = {
                     isDishRack: true,
@@ -450,14 +517,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 };
                 return;
             } else {
-                // كاملة (قطعة واحدة بدون فواصل إضافية)
-                addPartitions = 0;
                 remainSections = [
                     { secId: "sec_rem_full", width: remainInsideWidth, label: "المتبقي كاملاً" }
                 ];
             }
 
-            // توليد الأرفف (فقط في الخانات المتبقية، خانة المطبقية بدون رف شاسيه لأن بها شبكة المطبقية)
+            // توليد الأرفف
             unit.shelvesList = [];
             for (let tier = 1; tier <= tiers; tier++) {
                 remainSections.forEach((sec) => {
@@ -471,10 +536,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
 
-            // حساب الفواصل تلقائياً: 1 مطبقية + خانات الأرفف - 1
-            unit.partitions = calculateAutomaticPartitions(unit);
-
-            // مزامنة الضلف فوراً (درف المطبقية + درف الأرفف المتبقية)
             syncUnitDoorsFromShelves(unit);
 
             unit.calcMeta = {
@@ -491,105 +552,34 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // ==============================================================
-        // الحالة الثانية: وحدة بدون مطبقية (علوية أو سفلية)
+        // الحالة الثانية: وحدة عادية (بدون مطبقية) - فواصل يدوية كاملة
         // ==============================================================
-        if (!unit.divisionMode || unit.divisionMode === "manual") {
-            if (unit.shelvesList) {
-                unit.shelvesList.forEach((s, idx) => {
-                    if (!s.depth) s.depth = unit.depth;
-                    if (!s.sectionId) s.sectionId = `sec_custom_${s.id || idx}`;
-                });
-            }
-            unit.partitions = calculateAutomaticPartitions(unit);
-            syncUnitDoorsFromShelves(unit);
-            return;
+        if (unit.shelvesList) {
+            unit.shelvesList.forEach((s, idx) => {
+                if (!s.depth) s.depth = unit.depth;
+                if (!s.sectionId) s.sectionId = `sec_custom_${s.id || idx}`;
+            });
         }
-
-        // تقسيم الثلث والثلثين العادي (بدون مطبقية)
-        if (unit.divisionMode === "1/3_2/3") {
-            const netInsideWidth = Math.max(0, W - (3 * d));
-            const wThird = Math.round((netInsideWidth / 3.0) * 100) / 100;
-            const wTwoThirds = Math.round((2.0 * netInsideWidth / 3.0) * 100) / 100;
-
-            unit.shelvesList = [];
-            for (let tier = 1; tier <= tiers; tier++) {
-                unit.shelvesList.push({
-                    id: `s_third_${tier}`,
-                    sectionId: "sec_third",
-                    width: wThird,
-                    depth: shelfDepth,
-                    label: tiers > 1 ? `رف التلت #${tier}` : "قسم التلت"
-                });
-                unit.shelvesList.push({
-                    id: `s_twothirds_${tier}`,
-                    sectionId: "sec_twothirds",
-                    width: wTwoThirds,
-                    depth: shelfDepth,
-                    label: tiers > 1 ? `رف التلتين #${tier}` : "قسم التلتين"
-                });
-            }
-
-            // حساب الفواصل تلقائياً: رفين/قسمين = فاصل 1
-            unit.partitions = calculateAutomaticPartitions(unit);
-            syncUnitDoorsFromShelves(unit);
-
-            const doorThirdWidth = Math.round((wThird + 2.3) * 100) / 100;
-            const doorTwoThirdsWidth = Math.round(((wTwoThirds + 2.3) / 2.0) * 100) / 100;
-
-            unit.calcMeta = {
-                isDishRack: false,
-                isThirdTwoThirds: true,
-                netInsideWidth,
-                wThird,
-                wTwoThirds,
-                doorThirdWidth,
-                doorTwoThirdsWidth,
-                doorsTotal: unit.doorsList.length,
-                shelvesTotal: unit.shelvesList.length
-            };
-            return;
-        }
-
-        // التقسيم المتساوي (قطعة واحدة، نصين، 3 خانات، 4 خانات)
-        const N = parseInt(unit.divisionMode) || 1;
-
-        const outerDeduction = 2 * d;
-        const partitionsDeduction = (N - 1) * d;
-        const netInsideWidth = Math.max(0, W - outerDeduction - partitionsDeduction);
-        const sectionShelfWidth = Math.round((netInsideWidth / N) * 100) / 100;
-
-        unit.shelvesList = [];
-        for (let tier = 1; tier <= tiers; tier++) {
-            for (let s = 1; s <= N; s++) {
-                unit.shelvesList.push({
-                    id: `s_sec_${s}_${tier}`,
-                    sectionId: `sec_${s}`,
-                    width: sectionShelfWidth,
-                    depth: shelfDepth,
-                    section: s,
-                    tier: tier,
-                    label: tiers > 1 ? `خانة #${s} - رف #${tier}` : `خانة #${s}`
-                });
-            }
-        }
-
-        // حساب الفواصل تلقائياً
-        unit.partitions = calculateAutomaticPartitions(unit);
         syncUnitDoorsFromShelves(unit);
 
-        const rawDoorWidth = Math.round((sectionShelfWidth + 2.3) * 100) / 100;
+        const P = unit.partitions;
+        const N = P + 1; // عدد الفتحات/الخانات الناتجة
+        const netInsideWidth = Math.max(0, W - (2 * d) - (P * d));
+        const sectionWidth = Math.round((netInsideWidth / N) * 100) / 100;
+        const rawDoorWidth = Math.round((sectionWidth + 2.3) * 100) / 100;
         const shouldSplit = (unit.autoDoorSplit45 !== false) && (rawDoorWidth > 45.0);
 
         unit.calcMeta = {
             isDishRack: false,
-            isThirdTwoThirds: false,
             netInsideWidth,
-            sectionShelfWidth,
+            partitions: P,
+            openingsCount: N,
+            sectionWidth,
             rawDoorWidth,
             isSplit: shouldSplit,
             splitWidth: shouldSplit ? Math.round((rawDoorWidth / 2.0) * 100) / 100 : rawDoorWidth,
             doorsTotal: unit.doorsList.length,
-            shelvesTotal: unit.shelvesList.length
+            shelvesTotal: (unit.shelvesList || []).length
         };
     }
 
@@ -651,7 +641,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             chassisStockSub.textContent = `عود بطول ${(state.chassisStockLength / 100).toFixed(2)} متر`;
             saveState();
-            recalculateAll();
+            markCalculationPending("تم تعديل طول عود الشاسيه - اضغط احسب لتحديث النتائج");
         });
     });
 
@@ -659,7 +649,7 @@ document.addEventListener("DOMContentLoaded", () => {
         state.chassisStockLength = parseFloat(customChassisInput.value) || 600;
         chassisStockSub.textContent = `عود بطول ${(state.chassisStockLength / 100).toFixed(2)} متر`;
         saveState();
-        recalculateAll();
+        markCalculationPending("تم تعديل طول عود الشاسيه - اضغط احسب لتحديث النتائج");
     });
 
     doorStockPills.forEach(pill => {
@@ -675,7 +665,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             doorStockSub.textContent = `عود بطول ${(state.doorStockLength / 100).toFixed(2)} متر`;
             saveState();
-            recalculateAll();
+            markCalculationPending("تم تعديل طول عود الضلف - اضغط احسب لتحديث النتائج");
         });
     });
 
@@ -683,82 +673,30 @@ document.addEventListener("DOMContentLoaded", () => {
         state.doorStockLength = parseFloat(customDoorInput.value) || 600;
         doorStockSub.textContent = `عود بطول ${(state.doorStockLength / 100).toFixed(2)} متر`;
         saveState();
-        recalculateAll();
+        markCalculationPending("تم تعديل طول عود الضلف - اضغط احسب لتحديث النتائج");
     });
 
     bladeKerfInput.addEventListener("input", () => {
         state.bladeKerf = parseFloat(bladeKerfInput.value) || 0;
         saveState();
-        recalculateAll();
+        markCalculationPending("تم تعديل سمك المنشار - اضغط احسب لتحديث النتائج");
     });
 
     profileDeductionInput.addEventListener("input", () => {
         state.profileDeduction = parseFloat(profileDeductionInput.value) || 0;
+        const d = state.profileDeduction;
         state.units.forEach(u => {
+            u.partitionHeight = Math.max(0, (parseFloat(u.height) || 0) - (d * 2));
             autoCalculateUnitDivisions(u);
         });
         saveState();
         renderUnits();
-        recalculateAll();
+        markCalculationPending("تم تعديل خصم التجميع - اضغط احسب لتحديث النتائج");
     });
 
     clientNameInput.addEventListener("input", () => {
         state.clientName = clientNameInput.value.trim();
         saveState();
-    });
-
-    // --- Quick Templates Handling ---
-    document.querySelectorAll(".quick-template-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const type = btn.dataset.type;
-            let newUnit = null;
-
-            if (type === "lower-std") {
-                newUnit = {
-                    name: "علبة سفلية درفتين (100 سم)",
-                    unitType: "lower",
-                    hasDishRack: false,
-                    width: 100, height: 85, depth: 60,
-                    divisionMode: "2", shelfTiers: 1, handleType: "external", autoDoorSplit45: true, quantity: 1
-                };
-            } else if (type === "sink") {
-                newUnit = {
-                    name: "علبة حوض سفلية (بدون أرفف)",
-                    unitType: "lower",
-                    hasDishRack: false,
-                    width: 100, height: 85, depth: 60,
-                    divisionMode: "2", shelfTiers: 0, handleType: "external", autoDoorSplit45: true, quantity: 1
-                };
-            } else if (type === "upper-std") {
-                newUnit = {
-                    name: "علبة علوية 200سم بمطبقية 70سم",
-                    unitType: "upper",
-                    hasDishRack: true,
-                    dishRackSize: 70,
-                    dishRackRemainMode: "third_twothirds",
-                    width: 200, height: 80, depth: 35,
-                    shelfTiers: 1, handleType: "external", autoDoorSplit45: true, quantity: 1
-                };
-            } else if (type === "partition-std") {
-                newUnit = {
-                    name: "علبة فاصلين متساوية (3 خانات)",
-                    unitType: "lower",
-                    hasDishRack: false,
-                    width: 120, height: 85, depth: 60,
-                    divisionMode: "3", shelfTiers: 1, handleType: "external", autoDoorSplit45: true, quantity: 1
-                };
-            }
-
-            if (newUnit) {
-                newUnit.id = "u_" + Date.now();
-                autoCalculateUnitDivisions(newUnit);
-                state.units.push(newUnit);
-                saveState();
-                renderUnits();
-                recalculateAll();
-                showToast(`✓ تم إضافة: ${newUnit.name}`);
-            }
-        });
     });
 
     // --- Units Management ---
@@ -772,17 +710,17 @@ document.addEventListener("DOMContentLoaded", () => {
             width: 100,
             height: 85,
             depth: 60,
-            divisionMode: "2",
+            partitions: 0, // يبدأ بدون فواصل
             shelfTiers: 1,
             handleType: "external",
-            autoDoorSplit45: true,
+            autoDoorSplit45: false,
             quantity: 1
         };
         autoCalculateUnitDivisions(newUnit);
         state.units.push(newUnit);
         saveState();
         renderUnits();
-        recalculateAll();
+        markCalculationPending("تم إضافة علبة جديدة - اضغط احسب لتحديث النتائج");
         showToast("✓ تم إضافة علبة جديدة");
     });
 
@@ -793,6 +731,7 @@ document.addEventListener("DOMContentLoaded", () => {
             saveState();
             renderUnits();
             recalculateAll();
+            markCalculationFresh();
             showToast("تم تفريغ القائمة");
         }
     });
@@ -817,11 +756,11 @@ document.addEventListener("DOMContentLoaded", () => {
             html += `
                 <div class="door-item-row ${isRack ? 'door-rack-row' : ''}" data-door-id="${door.id}">
                     <div class="door-row-top">
-                        <div style="display: flex; align-items: center; gap: 6px;">
+                        <div class="door-title-box">
                             <span class="door-source-icon">${isRack ? '🍽️' : '📚'}</span>
                             <span class="door-item-label">${escapeHtml(door.sectionLabel || ('ضلفة #' + (dIdx + 1)))}</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
+                        <div class="door-actions-box">
                             <span class="door-calc-badge" title="مقاس تقطيع الضلفة الصافي (العرض × الارتفاع)">
                                 مقاس الدرفة: ${doorW} × ${doorH} سم
                             </span>
@@ -841,7 +780,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <input type="number" step="0.1" class="door-finalw-input" value="${doorW}" data-unit-id="${unit.id}" data-door-id="${door.id}" min="5" max="400" title="يمكنك تعديل عرض الدرفة يدوياً إذا رغبت">
                             <label>سم</label>
                         </div>
-                        <div style="display: flex; gap: 6px; align-items: center;">
+                        <div class="door-controls-group">
                             <select class="handle-select" data-unit-id="${unit.id}" data-door-id="${door.id}" title="نوع المقبض">
                                 <option value="external" ${handleType === "external" ? "selected" : ""}>مقبض خارجي (+3سم)</option>
                                 <option value="builtin" ${handleType === "builtin" ? "selected" : ""}>بلت إن (ارتفاع الفاصل)</option>
@@ -889,7 +828,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 unit.doorsList = (unit.doorsList || []).filter(d => d.id !== doorId);
                 saveState();
                 renderUnits();
-                recalculateAll();
+                markCalculationPending();
                 showToast(`✓ تم مسح ${doorLabel} (الرف الآن مكشوف بدون درفة)`);
             });
         });
@@ -905,7 +844,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         door.finalWidth = val;
                         updateDoorBadge(e.target.closest(".door-item-row"), door, unit);
                         saveState();
-                        recalculateAll();
+                        markCalculationPending();
                     }
                 }
             });
@@ -922,7 +861,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         door.handleType = val;
                         updateDoorBadge(e.target.closest(".door-item-row"), door, unit);
                         saveState();
-                        recalculateAll();
+                        markCalculationPending();
                     }
                 }
             });
@@ -947,7 +886,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         attachDoorEvents(container, unit);
                         saveState();
                         renderUnits();
-                        recalculateAll();
+                        markCalculationPending();
                         showToast(`✓ تم ضبط: ${newMode === 'double' ? 'درفتين مزدوجتين' : 'درفة مفردة'}`);
                     }
                 }
@@ -981,9 +920,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const uType = unit.unitType || "lower";
             const isUpper = (uType === "upper");
             const hasDishRack = (isUpper && unit.hasDishRack);
+            const rackDoors = (unit.doorsList || []).filter(door => door.source === "dish_rack");
             const meta = unit.calcMeta || {};
             const d = parseFloat(state.profileDeduction || 0);
             const actualPartH = (parseFloat(unit.partitionHeight) || (unit.height - (d * 2))).toFixed(1);
+            const drawerEnabled = !isUpper && unit.hasDrawers === true;
+            const drawerOpeningWidth = Number.isFinite(parseFloat(unit.drawerOpeningWidth))
+                ? parseFloat(unit.drawerOpeningWidth)
+                : "";
+            const drawerWidth = drawerOpeningWidth === "" ? null : Math.max(0, drawerOpeningWidth - 2.6);
+            const drawerDepth = Math.max(0, parseFloat(unit.depth || 0) - 3);
+            const drawerCount = Math.max(1, parseInt(unit.drawerCount) || 1);
 
             // مربع خيارات المطبقية (يظهر فقط إذا كانت الوحدة علوية)
             let dishRackHtml = "";
@@ -1035,7 +982,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <div class="sdb-calc-item">
                                 ${remMode === 'custom' ?
                                     `<span class="sdb-alert-badge safe">⚙️ وضع مخصص: يمكنك تعديل مقاسات الأرفف، والضلف، وعدد الفواصل بالأسفل يدوياً</span>` :
-                                    `<span class="sdb-alert-badge safe">🍽️ درف المطبقية: ${meta.rackOpeningWidth + 2.3 > 45 ? 'درفتين' : 'درفة واحدة'} (${meta.rackOpeningWidth + 2.3 > 45 ? Math.round(((meta.rackOpeningWidth + 2.3) / 2) * 100) / 100 : Math.round((meta.rackOpeningWidth + 2.3) * 100) / 100} سم لكل درفة)</span>`
+                                    `<span class="sdb-alert-badge safe">🍽️ درف المطبقية: ${rackDoors.length === 0 ? 'بدون درفة' : rackDoors.length > 1 ? 'درفتين' : 'درفة واحدة'}${rackDoors.length > 0 ? ` (${Math.round(parseFloat(rackDoors[0].finalWidth) * 100) / 100} سم لكل درفة)` : ''}</span>`
                                 }
                             </div>
                         </div>
@@ -1044,59 +991,89 @@ document.addEventListener("DOMContentLoaded", () => {
                 `;
             }
 
-            // شريط التقسيم للوحدات التي لا تحتوي مطبقية
-            let standardDivisionHtml = "";
-            if (!hasDishRack) {
-                const divMode = unit.divisionMode || "2";
-                standardDivisionHtml = `
-                    <div class="smart-division-bar">
-                        <div class="sdb-header">
-                            <span class="sdb-title">⚡ تقسيم العلبة الذكي:</span>
-                            <div class="sdb-pills">
-                                <button type="button" class="sdb-btn ${divMode === '1' ? 'active' : ''}" data-unit-id="${unit.id}" data-mode="1">قطعة واحدة</button>
-                                <button type="button" class="sdb-btn ${divMode === '2' ? 'active' : ''}" data-unit-id="${unit.id}" data-mode="2">نصين (فاصل 1)</button>
-                                <button type="button" class="sdb-btn ${divMode === '1/3_2/3' ? 'active' : ''}" data-unit-id="${unit.id}" data-mode="1/3_2/3" style="border-color: #38bdf8;">ثلث وثلثين (درفة ودرفتين)</button>
-                                <button type="button" class="sdb-btn ${divMode === '3' ? 'active' : ''}" data-unit-id="${unit.id}" data-mode="3">3 خانات متساوية</button>
-                                <button type="button" class="sdb-btn ${divMode === '4' ? 'active' : ''}" data-unit-id="${unit.id}" data-mode="4">4 خانات</button>
-                                <button type="button" class="sdb-btn ${divMode === 'manual' ? 'active' : ''}" data-unit-id="${unit.id}" data-mode="manual">تخصيص يدوي</button>
-                            </div>
-                        </div>
+            // قسم الفواصل الرأسية (يدوي) للوحدة
+            const P = Math.max(0, parseInt(unit.partitions) || 0);
+            const N = P + 1;
+            const partD = Math.max(0, parseFloat(unit.depth || 0) - (d * 2)).toFixed(1);
+            const netInside = Math.max(0, parseFloat(unit.width || 0) - (2 * d) - (P * d));
+            const secW = (netInside / N).toFixed(1);
 
-                        ${divMode === '1/3_2/3' ? `
-                        <div class="sdb-calc-summary">
-                            <div class="sdb-calc-item">صافي العرض: <strong>${meta.netInsideWidth || 0} سم</strong></div>
-                            <div class="sdb-calc-item">ارتفاع الفاصل: <strong>${actualPartH} سم</strong> (${unit.height} - [${d} × 2])</div>
-                            <div class="sdb-calc-item">
-                                <span class="sdb-alert-badge safe">
-                                    📌 قسم التلت: رف ${meta.wThird} سم ➔ درفة (${meta.doorThirdWidth} سم)
-                                </span>
-                            </div>
-                            <div class="sdb-calc-item">
-                                <span class="sdb-alert-badge safe">
-                                    📌 قسم التلتين: رف ${meta.wTwoThirds} سم ➔ درفتين (${meta.doorTwoThirdsWidth} سم لكل درفة)
-                                </span>
-                            </div>
+            const partitionSectionHtml = `
+                <div class="partition-section-box">
+                    <div class="psb-header">
+                        <div class="psb-title-wrap">
+                            <span class="psb-icon">🚪</span>
+                            <span class="psb-title">قسم الفواصل الرأسية (يدوي):</span>
+                            <span class="psb-badge">${P > 0 ? `${P} فاصل (${N} خانات)` : 'بدون فواصل داخلية'}</span>
                         </div>
-                        ` : (divMode !== 'manual' ? `
-                        <div class="sdb-calc-summary">
-                            <div class="sdb-calc-item">صافي العرض: <strong>${meta.netInsideWidth || 0} سم</strong></div>
-                            <div class="sdb-calc-item">عرض الرف: <strong>${meta.sectionShelfWidth || 0} سم</strong> (العمق: <strong>${unit.depth} سم</strong>)</div>
-                            <div class="sdb-calc-item">ارتفاع الفاصل: <strong>${actualPartH} سم</strong> (${unit.height} - [${d} × 2])</div>
-                            <div class="sdb-calc-item">
-                                ${meta.isSplit ? 
-                                    `<span class="sdb-alert-badge" title="عرض الدرفة الأصلي (${meta.rawDoorWidth} سم) أكبر من 45 سم، تم التقسيم لدرفتين">
-                                        ⚠️ مقاس الدرفة الأصلي ${meta.rawDoorWidth} سم > 45 سم: تم التقسيم لدرفتين بعرض ${meta.splitWidth} سم
-                                    </span>` : 
-                                    `<span class="sdb-alert-badge safe">
-                                        ✓ مقاس الدرفة: ${meta.rawDoorWidth} سم (درفة واحدة لكل خانة)
-                                    </span>`
+                        <div class="psb-controls">
+                            <button type="button" class="btn-counter btn-dec-part" data-unit-id="${unit.id}" title="تقليل فاصل">-</button>
+                            <input type="number" min="0" max="20" class="partition-qty-input" value="${P}" data-unit-id="${unit.id}" data-field="partitions" title="أدخل عدد الفواصل يدوياً">
+                            <button type="button" class="btn-counter btn-inc-part" data-unit-id="${unit.id}" title="زيادة فاصل">+</button>
+                            <span class="psb-unit-label">فاصل رأسي</span>
+                        </div>
+                    </div>
+                    <div class="psb-details-grid">
+                        <div class="psb-detail-item">
+                            <label>ارتفاع الفاصل:</label>
+                            <div class="psb-input-row">
+                                <input type="number" step="0.1" value="${actualPartH}" min="5" max="300" data-unit-id="${unit.id}" class="part-h-input" title="ارتفاع الفاصل = الارتفاع الكلي - (خصم التجميع × 2)">
+                                <span>سم</span>
+                            </div>
+                            <small class="psb-hint">${unit.height} - (${d} × 2)</small>
+                        </div>
+                        <div class="psb-detail-item">
+                            <label>عمق تثبيت الفاصل:</label>
+                            <div class="psb-input-row">
+                                <input type="number" value="${partD}" readonly style="opacity: 0.85;" title="عمق الفاصل = عمق العلبة - (خصم التجميع × 2)">
+                                <span>سم</span>
+                            </div>
+                            <small class="psb-hint">${unit.depth} - (${d} × 2)</small>
+                        </div>
+                        <div class="psb-detail-item psb-summary-item">
+                            <label>قطع ألوميتال الفواصل للعلبة:</label>
+                            <div class="psb-cuts-preview">
+                                ${P > 0 ? 
+                                    `<span><strong>${P * 2}</strong> قائم (${actualPartH} سم) + <strong>${P * 2}</strong> عمق (${partD} سم)</span>` : 
+                                    `<span style="color: var(--text-muted);">لا توجد فواصل مضافة</span>`
+                                }
+                            </div>
+                            <div class="psb-openings-info">
+                                ${P > 0 ? 
+                                    `العلبة مقسمة إلى <strong>${N} خانات</strong>، صافي عرض كل خانة: <strong>${secW} سم</strong>` : 
+                                    `العلبة مفتوحة خانة واحدة بعرض صافي: <strong>${secW} سم</strong>`
                                 }
                             </div>
                         </div>
-                        ` : '')}
                     </div>
-                `;
-            }
+                </div>
+            `;
+
+            const drawerOptionsHtml = !isUpper ? `
+                <div class="drawer-options-box">
+                    <label class="drawer-toggle-label">
+                        <input type="checkbox" class="drawer-enabled-input" data-unit-id="${unit.id}" ${drawerEnabled ? "checked" : ""}>
+                        <span>يوجد أدراج بقطاع 2×8</span>
+                    </label>
+                    ${drawerEnabled ? `
+                        <div class="drawer-fields-grid">
+                            <label>
+                                عدد الأدراج
+                                <input type="number" class="drawer-count-input" data-unit-id="${unit.id}" value="${drawerCount}" min="1" max="50" step="1">
+                            </label>
+                            <label>
+                                عرض فتحة الدرج (سم)
+                                <input type="number" class="drawer-opening-input" data-unit-id="${unit.id}" value="${drawerOpeningWidth}" min="2.6" max="400" step="0.1" placeholder="أدخل عرض الفتحة">
+                            </label>
+                        </div>
+                        <div class="drawer-size-preview">
+                            ${drawerWidth === null
+                                ? "أدخل عرض الفتحة لحساب مقاس قطع الدرج."
+                                : `لكل درج: قطعتان عرض <strong>${drawerWidth.toFixed(1)} سم</strong> + قطعتان عمق <strong>${drawerDepth.toFixed(1)} سم</strong> (عرض الفتحة − 2.6 سم، وعمق الوحدة − 3 سم).`}
+                        </div>
+                    ` : ""}
+                </div>
+            ` : "";
 
             // قائمة الأرفف
             let shelvesHtml = "";
@@ -1104,18 +1081,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 const label = shelf.label || `رف #${sIdx + 1}`;
                 shelvesHtml += `
                     <div class="shelf-item-row" data-shelf-id="${shelf.id}">
-                        <span class="shelf-item-label">${label}:</span>
-                        <div class="shelf-input-wrap">
-                            <label>العرض:</label>
-                            <input type="number" step="0.1" class="shelf-w-input" value="${shelf.width}" data-unit-id="${unit.id}" data-shelf-id="${shelf.id}" min="5" max="400">
-                            <label>سم</label>
+                        <div class="shelf-header-box">
+                            <span class="shelf-item-label">${label}:</span>
+                            <button type="button" class="shelf-del-btn" data-unit-id="${unit.id}" data-shelf-id="${shelf.id}" title="حذف هذا الرف">✕</button>
                         </div>
-                        <div class="shelf-input-wrap">
-                            <label>العمق (ثابت):</label>
-                            <input type="number" class="shelf-d-input" value="${shelf.depth || unit.depth}" data-unit-id="${unit.id}" data-shelf-id="${shelf.id}" min="5" max="150" readonly style="opacity: 0.8;" title="العمق ثابت ويطابق عمق الوحدة">
-                            <label>سم</label>
+                        <div class="shelf-inputs-box">
+                            <div class="shelf-input-wrap">
+                                <label>العرض:</label>
+                                <input type="number" step="0.1" class="shelf-w-input" value="${shelf.width}" data-unit-id="${unit.id}" data-shelf-id="${shelf.id}" min="5" max="400">
+                                <label>سم</label>
+                            </div>
+                            <div class="shelf-input-wrap">
+                                <label>العمق (ثابت):</label>
+                                <input type="number" class="shelf-d-input" value="${shelf.depth || unit.depth}" data-unit-id="${unit.id}" data-shelf-id="${shelf.id}" min="5" max="150" readonly style="opacity: 0.8;" title="العمق ثابت ويطابق عمق الوحدة">
+                                <label>سم</label>
+                            </div>
                         </div>
-                        <button type="button" class="shelf-del-btn" data-unit-id="${unit.id}" data-shelf-id="${shelf.id}" title="حذف هذا الرف">✕</button>
                     </div>
                 `;
             });
@@ -1125,23 +1106,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
             card.innerHTML = `
                 <div class="unit-card-header">
-                    <div class="unit-title-group">
+                    <div class="unit-header-top-row">
                         <input type="text" class="unit-name-input" value="${escapeHtml(unit.name)}" data-id="${unit.id}" data-field="name" title="اضغط لتعديل الاسم">
                         
-                        <!-- زر اختيار نوع الوحدة: فوق (علوي) أو تحت (سفلي) -->
-                        <div class="unit-type-pills">
-                            <button type="button" class="unit-type-btn type-upper ${isUpper ? 'active' : ''}" data-unit-id="${unit.id}" data-type="upper">🔼 وحدة فوق (علوي)</button>
-                            <button type="button" class="unit-type-btn type-lower ${!isUpper ? 'active' : ''}" data-unit-id="${unit.id}" data-type="lower">🔽 وحدة تحت (سفلي)</button>
+                        <div class="unit-card-actions">
+                            <button type="button" class="unit-act-btn duplicate-btn" data-id="${unit.id}" title="تكرار العلبة بنفس مقاساتها">
+                                <span>نسخ</span> 📑
+                            </button>
+                            <button type="button" class="unit-act-btn delete-btn" data-id="${unit.id}" title="حذف العلبة">
+                                <span>حذف</span> 🗑️
+                            </button>
                         </div>
                     </div>
 
-                    <div class="unit-card-actions">
-                        <button type="button" class="unit-act-btn duplicate-btn" data-id="${unit.id}" title="تكرار العلبة بنفس مقاساتها">
-                            نسخ العلبة 📑
-                        </button>
-                        <button type="button" class="unit-act-btn delete-btn" data-id="${unit.id}" title="حذف العلبة">
-                            حذف 🗑️
-                        </button>
+                    <!-- زر اختيار نوع الوحدة: فوق (علوي) أو تحت (سفلي) -->
+                    <div class="unit-type-pills">
+                        <button type="button" class="unit-type-btn type-upper ${isUpper ? 'active' : ''}" data-unit-id="${unit.id}" data-type="upper">🔼 وحدة فوق (علوي)</button>
+                        <button type="button" class="unit-type-btn type-lower ${!isUpper ? 'active' : ''}" data-unit-id="${unit.id}" data-type="lower">🔽 وحدة تحت (سفلي)</button>
                     </div>
                 </div>
 
@@ -1171,12 +1152,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         <span class="dim-unit">سم</span>
                     </div>
 
-                    <div class="dim-box auto-dim-box" style="border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.05);" title="حساب تلقائي للفواصل الرأسية (كل رفين فاصل، والمطبقية تعامل كرف)">
-                        <label style="color: #38bdf8;">فواصل رأسية ⚡</label>
-                        <div style="font-size: 1.15rem; font-weight: 700; font-family: var(--font-num); color: #38bdf8; padding: 2px 0;">
-                            ${unit.partitions || 0}
-                        </div>
-                        <span class="dim-unit" style="color: #38bdf8; opacity: 0.85;">فاصل (تلقائي)</span>
+                    <div class="dim-box" style="border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.05);" title="عدد الفواصل الرأسية (يدوي)">
+                        <label style="color: #38bdf8;">عدد الفواصل (يدوي)</label>
+                        <input type="number" min="0" max="20" value="${P}" data-id="${unit.id}" data-field="partitions">
+                        <span class="dim-unit" style="color: #38bdf8; opacity: 0.85;">فاصل</span>
                     </div>
 
                     <div class="dim-box" style="border-color: rgba(59, 130, 246, 0.4);">
@@ -1186,11 +1165,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 </div>
 
+                ${drawerOptionsHtml}
+
                 <!-- قسم المطبقية (لوحدة فوق) -->
                 ${dishRackHtml}
 
-                <!-- شريط التقسيم العادي (لوحدة بدون مطبقية) -->
-                ${standardDivisionHtml}
+                <!-- قسم الفواصل الرأسية (يدوي) -->
+                ${partitionSectionHtml}
 
                 <!-- قسم الأرفف المخصصة والضلف -->
                 <div class="unit-sub-sections">
@@ -1260,7 +1241,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     autoCalculateUnitDivisions(targetUnit);
                     saveState();
                     renderUnits();
-                    recalculateAll();
+                    markCalculationPending();
                     showToast(`✓ تم ضبط الوحدة: ${type === 'upper' ? '🔼 علوية (فوق)' : '🔽 سفلية (تحت)'}`);
                 }
             });
@@ -1279,7 +1260,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     autoCalculateUnitDivisions(targetUnit);
                     saveState();
                     renderUnits();
-                    recalculateAll();
+                    markCalculationPending();
                     showToast(val ? "✓ تم تفعيل خيار المطبقية" : "تم إلغاء المطبقية");
                 }
             });
@@ -1301,24 +1282,75 @@ document.addEventListener("DOMContentLoaded", () => {
                     autoCalculateUnitDivisions(targetUnit);
                     saveState();
                     renderUnits();
-                    recalculateAll();
+                    markCalculationPending();
                 }
             });
         });
 
-        // تغيير أزرار التقسيم الذكي للوحدات العادية
-        unitsContainer.querySelectorAll(".sdb-btn[data-mode]").forEach(btn => {
+        // أزرار زيادة وتقليل الفواصل يدوياً (Manual Partitions Counters)
+        unitsContainer.querySelectorAll(".btn-dec-part").forEach(btn => {
             btn.addEventListener("click", () => {
                 const unitId = btn.dataset.unitId;
-                const mode = btn.dataset.mode;
                 const targetUnit = state.units.find(u => u.id === unitId);
                 if (targetUnit) {
-                    targetUnit.divisionMode = mode;
+                    const cur = Math.max(0, parseInt(targetUnit.partitions) || 0);
+                    if (cur > 0) {
+                        targetUnit.partitions = cur - 1;
+                        autoCalculateUnitDivisions(targetUnit);
+                        saveState();
+                        renderUnits();
+                        markCalculationPending("تم تعديل عدد الفواصل - اضغط احسب لتحديث النتائج");
+                        showToast(`✓ عدد الفواصل للعلبة: ${targetUnit.partitions}`);
+                    }
+                }
+            });
+        });
+
+        unitsContainer.querySelectorAll(".btn-inc-part").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const unitId = btn.dataset.unitId;
+                const targetUnit = state.units.find(u => u.id === unitId);
+                if (targetUnit) {
+                    const cur = Math.max(0, parseInt(targetUnit.partitions) || 0);
+                    targetUnit.partitions = cur + 1;
                     autoCalculateUnitDivisions(targetUnit);
                     saveState();
                     renderUnits();
-                    recalculateAll();
-                    showToast(`✓ تم ضبط التقسيم: ${btn.textContent}`);
+                    markCalculationPending("تم تعديل عدد الفواصل - اضغط احسب لتحديث النتائج");
+                    showToast(`✓ عدد الفواصل للعلبة: ${targetUnit.partitions}`);
+                }
+            });
+        });
+
+        // إدخال عدد الفواصل يدوياً
+        unitsContainer.querySelectorAll(".partition-qty-input").forEach(input => {
+            input.addEventListener("change", (e) => {
+                const unitId = e.target.dataset.unitId;
+                const val = Math.max(0, parseInt(e.target.value) || 0);
+                const targetUnit = state.units.find(u => u.id === unitId);
+                if (targetUnit) {
+                    targetUnit.partitions = val;
+                    autoCalculateUnitDivisions(targetUnit);
+                    saveState();
+                    renderUnits();
+                    markCalculationPending("تم تعديل عدد الفواصل - اضغط احسب لتحديث النتائج");
+                    showToast(`✓ تم ضبط عدد الفواصل: ${val}`);
+                }
+            });
+        });
+
+        // تعديل ارتفاع الفاصل يدوياً
+        unitsContainer.querySelectorAll(".part-h-input").forEach(input => {
+            input.addEventListener("change", (e) => {
+                const unitId = e.target.dataset.unitId;
+                const val = Math.max(0, parseFloat(e.target.value) || 0);
+                const targetUnit = state.units.find(u => u.id === unitId);
+                if (targetUnit) {
+                    targetUnit.partitionHeight = val;
+                    autoCalculateUnitDivisions(targetUnit);
+                    saveState();
+                    renderUnits();
+                    markCalculationPending("تم تعديل ارتفاع الفاصل - اضغط احسب لتحديث النتائج");
                 }
             });
         });
@@ -1334,8 +1366,40 @@ document.addEventListener("DOMContentLoaded", () => {
                     autoCalculateUnitDivisions(targetUnit);
                     saveState();
                     renderUnits();
-                    recalculateAll();
+                    markCalculationPending();
                 }
+            });
+        });
+
+        unitsContainer.querySelectorAll(".drawer-enabled-input").forEach(input => {
+            input.addEventListener("change", (e) => {
+                const targetUnit = state.units.find(unit => unit.id === e.target.dataset.unitId);
+                if (!targetUnit) return;
+
+                targetUnit.hasDrawers = e.target.checked;
+                if (targetUnit.hasDrawers && !targetUnit.drawerCount) targetUnit.drawerCount = 1;
+                autoCalculateUnitDivisions(targetUnit);
+                saveState();
+                renderUnits();
+                markCalculationPending("تم تعديل خيار الأدراج - اضغط احسب لتحديث النتائج");
+            });
+        });
+
+        unitsContainer.querySelectorAll(".drawer-count-input, .drawer-opening-input").forEach(input => {
+            input.addEventListener("change", (e) => {
+                const targetUnit = state.units.find(unit => unit.id === e.target.dataset.unitId);
+                if (!targetUnit) return;
+
+                if (e.target.classList.contains("drawer-count-input")) {
+                    targetUnit.drawerCount = Math.min(50, Math.max(1, parseInt(e.target.value) || 1));
+                } else {
+                    const openingWidth = parseFloat(e.target.value);
+                    targetUnit.drawerOpeningWidth = Number.isFinite(openingWidth) ? openingWidth : null;
+                }
+
+                saveState();
+                renderUnits();
+                markCalculationPending("تم تعديل مقاس الأدراج - اضغط احسب لتحديث النتائج");
             });
         });
 
@@ -1359,7 +1423,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     syncUnitDoorsFromShelves(targetUnit);
                     saveState();
                     renderUnits();
-                    recalculateAll();
+                    markCalculationPending();
                     showToast(`✓ تم ضبط المقبض: ${val === 'external' ? 'مقبض خارجي (+3سم)' : 'بلت إن'}`);
                 }
             });
@@ -1375,15 +1439,64 @@ document.addEventListener("DOMContentLoaded", () => {
                     syncUnitDoorsFromShelves(targetUnit);
                     saveState();
                     renderUnits();
-                    recalculateAll();
+                    markCalculationPending();
                     showToast("✓ تم استرجاع جميع الضلف لهذه العلبة");
                 }
             });
         });
 
-        // تغيير المدخلات الرئيسية للعلبة
+        // تغيير المدخلات الرئيسية للعلبة وتحديث ارتفاع الفاصل تلقائياً مع الارتفاع الكلي
         unitsContainer.querySelectorAll(".dim-box input, .unit-name-input").forEach(input => {
+            // تحديث فوري مرئي أثناء كتابة الارتفاع الكلي
             input.addEventListener("input", (e) => {
+                const id = e.target.dataset.id;
+                const field = e.target.dataset.field;
+                if (field === "height") {
+                    const val = parseFloat(e.target.value) || 0;
+                    const targetUnit = state.units.find(u => u.id === id);
+                    if (targetUnit) {
+                        const d = parseFloat(state.profileDeduction || 0);
+                        const newPartH = Math.max(0, val - (d * 2));
+                        targetUnit.height = val;
+                        targetUnit.partitionHeight = newPartH;
+
+                        // تحديث حقول إدخال وتفاصيل ارتفاع الفاصل داخل نفس كارت العلبة فورياً
+                        const card = e.target.closest(".unit-card");
+                        if (card) {
+                            const partDimInput = card.querySelector('input[data-field="partitionHeight"]');
+                            if (partDimInput) partDimInput.value = newPartH.toFixed(1);
+
+                            const partPsbInput = card.querySelector(".part-h-input");
+                            if (partPsbInput) partPsbInput.value = newPartH.toFixed(1);
+
+                            const psbHint = card.querySelector(".psb-hint");
+                            if (psbHint) psbHint.textContent = `${val} - (${d} × 2)`;
+
+                            const psbCuts = card.querySelector(".psb-cuts-preview");
+                            const P = Math.max(0, parseInt(targetUnit.partitions) || 0);
+                            const partD = Math.max(0, parseFloat(targetUnit.depth || 0) - (d * 2)).toFixed(1);
+                            if (psbCuts) {
+                                psbCuts.innerHTML = P > 0 
+                                    ? `<span><strong>${P * 2}</strong> قائم (${newPartH.toFixed(1)} سم) + <strong>${P * 2}</strong> عمق (${partD} سم)</span>`
+                                    : `<span style="color: var(--text-muted);">لا توجد فواصل مضافة</span>`;
+                            }
+
+                            // تحديث شارات مقاسات الضلف المرتبطة بارتفاع الفاصل
+                            card.querySelectorAll(".door-item-row").forEach(doorRow => {
+                                const doorId = doorRow.dataset.doorId;
+                                const door = (targetUnit.doorsList || []).find(dr => dr.id === doorId);
+                                if (door) {
+                                    updateDoorBadge(doorRow, door, targetUnit);
+                                }
+                            });
+                        }
+                        markCalculationPending("تم تعديل الارتفاع الكلي وارتفاع الفاصل - اضغط احسب لتحديث النتائج");
+                    }
+                }
+            });
+
+            // تأكيد التغيير وتحديث العلبة بالكامل
+            input.addEventListener("change", (e) => {
                 const id = e.target.dataset.id;
                 const field = e.target.dataset.field;
                 const val = field === "name" ? e.target.value : (parseFloat(e.target.value) || 0);
@@ -1391,17 +1504,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 const targetUnit = state.units.find(u => u.id === id);
                 if (targetUnit) {
                     targetUnit[field] = val;
-                    autoCalculateUnitDivisions(targetUnit);
-                    if (field === "width" || field === "height" || field === "depth" || field === "partitionHeight") {
-                        renderUnits();
+                    // تحديث ارتفاع الفاصل تلقائياً في بيانات العلبة عند تعديل الارتفاع الكلي
+                    if (field === "height") {
+                        const d = parseFloat(state.profileDeduction || 0);
+                        targetUnit.partitionHeight = Math.max(0, val - (d * 2));
                     }
+                    autoCalculateUnitDivisions(targetUnit);
                     saveState();
-                    recalculateAll();
+                    renderUnits();
+                    markCalculationPending("تم تعديل المقاسات - اضغط احسب لتحديث النتائج");
                 }
             });
         });
 
-        // زر إضافة رف (يدوي) - يولد رف وضلفته المرتبطة فوراً (مع إمكانية مسح الدرفة إذا كان مكشوفاً)
+        // زر إضافة رف (يدوي)
         unitsContainer.querySelectorAll(".add-shelf-btn").forEach(btn => {
             btn.addEventListener("click", () => {
                 const unitId = btn.dataset.unitId;
@@ -1410,10 +1526,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (!targetUnit.shelvesList) targetUnit.shelvesList = [];
                     const nextNum = targetUnit.shelvesList.length + 1;
                     const d = parseFloat(state.profileDeduction || 0);
-                    const netW = Math.max(0, targetUnit.width - (2 * d));
+                    const P = Math.max(0, parseInt(targetUnit.partitions) || 0);
+                    const N = P + 1;
+                    const netW = Math.max(0, targetUnit.width - (2 * d) - (P * d));
                     const defW = targetUnit.shelvesList.length > 0 
                         ? targetUnit.shelvesList[targetUnit.shelvesList.length - 1].width 
-                        : (netW > 0 ? netW : targetUnit.width);
+                        : (netW > 0 ? Math.round((netW / N) * 100) / 100 : targetUnit.width);
 
                     const newShelfId = "s_" + Date.now();
                     targetUnit.shelvesList.push({
@@ -1423,18 +1541,16 @@ document.addEventListener("DOMContentLoaded", () => {
                         depth: targetUnit.depth,
                         label: `رف #${nextNum}`
                     });
-                    // تحديث الفواصل الرأسية تلقائياً
-                    targetUnit.partitions = calculateAutomaticPartitions(targetUnit);
                     syncUnitDoorsFromShelves(targetUnit);
                     saveState();
                     renderUnits();
-                    recalculateAll();
-                    showToast(`✓ تم إضافة رف #${nextNum} وتحديث الفواصل تلقائياً (${targetUnit.partitions} فاصل)`);
+                    markCalculationPending("تم إضافة رف - اضغط احسب لتحديث النتائج");
+                    showToast(`✓ تم إضافة رف #${nextNum}`);
                 }
             });
         });
 
-        // حذف رف - يحذف الرف وضلفته المرتبطة فوراً ويحدث الفواصل
+        // حذف رف
         unitsContainer.querySelectorAll(".shelf-del-btn").forEach(btn => {
             btn.addEventListener("click", () => {
                 const unitId = btn.dataset.unitId;
@@ -1442,18 +1558,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 const targetUnit = state.units.find(u => u.id === unitId);
                 if (targetUnit && targetUnit.shelvesList) {
                     targetUnit.shelvesList = targetUnit.shelvesList.filter(s => s.id !== shelfId);
-                    // تحديث الفواصل الرأسية تلقائياً
-                    targetUnit.partitions = calculateAutomaticPartitions(targetUnit);
                     syncUnitDoorsFromShelves(targetUnit);
                     saveState();
                     renderUnits();
-                    recalculateAll();
-                    showToast(`تم حذف الرف وتحديث الفواصل تلقائياً (${targetUnit.partitions} فاصل)`);
+                    markCalculationPending("تم حذف رف - اضغط احسب لتحديث النتائج");
+                    showToast("تم حذف الرف");
                 }
             });
         });
 
-        // تعديل عرض الرف يدوياً - يحدّث مقاس الدرفة المرتبطة لحظياً دون فقدان التركيز
+        // تعديل عرض الرف يدوياً
         unitsContainer.querySelectorAll(".shelf-w-input").forEach(input => {
             input.addEventListener("input", (e) => {
                 const unitId = e.target.dataset.unitId;
@@ -1465,16 +1579,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     const shelf = targetUnit.shelvesList.find(s => s.id === shelfId);
                     if (shelf) {
                         shelf.width = val;
-                        // تحديث أي رف آخر يشترك في نفس الخانة
                         if (shelf.sectionId) {
                             targetUnit.shelvesList.forEach(s => {
                                 if (s.sectionId === shelf.sectionId) s.width = val;
                             });
                         }
-                        // مزامنة الضلف فوراً!
                         syncUnitDoorsFromShelves(targetUnit);
 
-                        // تحديث واجهة الضلف داخل بطاقة العلبة مباشرة دون إعادة بناء الصفحة كلها
                         const card = e.target.closest(".unit-card");
                         if (card) {
                             const doorsContainer = card.querySelector(".doors-list-container");
@@ -1485,12 +1596,12 @@ document.addEventListener("DOMContentLoaded", () => {
                                 attachDoorEvents(doorsContainer, targetUnit);
                             }
                             if (doorsTitle) {
-                                doorsTitle.textContent = `🚪 الضلف المرتبطة (${(targetUnit.doorsList || []).length})`;
+                                doorsTitle.textContent = `🚪 الضلف (${(targetUnit.doorsList || []).length})`;
                             }
                         }
 
                         saveState();
-                        recalculateAll();
+                        markCalculationPending();
                     }
                 }
             });
@@ -1508,7 +1619,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     state.units.push(clone);
                     saveState();
                     renderUnits();
-                    recalculateAll();
+                    markCalculationPending("تم نسخ علبة - اضغط احسب لتحديث النتائج");
                     showToast("✓ تم نسخ العلبة بكامل أبعادها");
                 }
             });
@@ -1521,7 +1632,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 state.units = state.units.filter(u => u.id !== id);
                 saveState();
                 renderUnits();
-                recalculateAll();
+                markCalculationPending("تم حذف علبة - اضغط احسب لتحديث النتائج");
                 showToast("تم حذف العلبة");
             });
         });
@@ -1545,6 +1656,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function recalculateAll() {
         let allChassisPieces = [];
         let allDoorPieces = [];
+        let allDrawerPieces = [];
 
         state.units.forEach(unit => {
             const result = AluminumCalculator.calculateUnitPieces(unit, {
@@ -1552,6 +1664,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             allChassisPieces = allChassisPieces.concat(result.chassisPieces);
             allDoorPieces = allDoorPieces.concat(result.doorPieces);
+            allDrawerPieces = allDrawerPieces.concat(result.drawerPieces);
         });
 
         const chassisOpt = CuttingOptimizer.optimize(
@@ -1566,12 +1679,17 @@ document.addEventListener("DOMContentLoaded", () => {
             state.bladeKerf
         );
 
-        const allPiecesCombined = allChassisPieces.concat(allDoorPieces);
+        const drawerOpt = CuttingOptimizer.optimize(
+            allDrawerPieces,
+            drawerStockLength,
+            state.bladeKerf
+        );
+
+        const allPiecesCombined = allChassisPieces.concat(allDoorPieces, allDrawerPieces);
         const groupedCuts = AluminumCalculator.groupSimilarPieces(allPiecesCombined);
 
-        const totalNetMeters = (parseFloat(chassisOpt.totalUsedMeters) + parseFloat(doorOpt.totalUsedMeters)).toFixed(2);
-        const totalWasteMeters = (parseFloat(chassisOpt.totalWasteMeters) + parseFloat(doorOpt.totalWasteMeters)).toFixed(2);
-        const totalStockLength = (chassisOpt.totalBars * state.chassisStockLength) + (doorOpt.totalBars * state.doorStockLength);
+        const totalNetMeters = (parseFloat(chassisOpt.totalUsedMeters) + parseFloat(doorOpt.totalUsedMeters) + parseFloat(drawerOpt.totalUsedMeters)).toFixed(2);
+        const totalStockLength = (chassisOpt.totalBars * state.chassisStockLength) + (doorOpt.totalBars * state.doorStockLength) + (drawerOpt.totalBars * drawerStockLength);
         const totalNetLength = (parseFloat(totalNetMeters) * 100);
         const totalEfficiency = totalStockLength > 0 ? ((totalNetLength / totalStockLength) * 100).toFixed(1) : 0;
 
@@ -1579,19 +1697,25 @@ document.addEventListener("DOMContentLoaded", () => {
         chassisBarsTabBadge.textContent = `${chassisOpt.totalBars} عود`;
         doorBarsDisplay.textContent = doorOpt.totalBars;
         doorBarsTabBadge.textContent = `${doorOpt.totalBars} عود`;
+        drawerBarsDisplay.textContent = drawerOpt.totalBars;
+        drawerBarsTabBadge.textContent = `${drawerOpt.totalBars} عود`;
+        drawerStockSub.textContent = `عود بطول ${(drawerStockLength / 100).toFixed(1)} متر`;
 
         totalUsedMetersDisplay.textContent = totalNetMeters;
         chassisMetersSub.textContent = chassisOpt.totalUsedMeters;
         doorMetersSub.textContent = doorOpt.totalUsedMeters;
+        drawerMetersSub.textContent = drawerOpt.totalUsedMeters;
 
         efficiencyDisplay.textContent = `${totalEfficiency}%`;
         chassisWasteSub.textContent = chassisOpt.totalWasteMeters;
         doorWasteSub.textContent = doorOpt.totalWasteMeters;
+        drawerWasteSub.textContent = drawerOpt.totalWasteMeters;
 
         renderBarsPlan(chassisBarsListContainer, chassisOpt.bars, state.chassisStockLength, "شاسيه");
         renderBarsPlan(doorsBarsListContainer, doorOpt.bars, state.doorStockLength, "ضلف");
+        renderBarsPlan(drawerBarsListContainer, drawerOpt.bars, drawerStockLength, "2×8 للأدراج");
         renderCuttingTable(groupedCuts);
-        preparePrintSheet(chassisOpt, doorOpt, groupedCuts);
+        preparePrintSheet(chassisOpt, doorOpt, drawerOpt, groupedCuts);
     }
 
     // --- Render Visual Bars Plan ---
@@ -1599,7 +1723,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!bars || bars.length === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 25px; color: var(--text-muted);">
-                    لا توجد قطع ${planType === "شاسيه" ? "شاسيه" : "ضلف"} للتقطيع حالياً.
+                    لا توجد قطع ${planType} للتقطيع حالياً.
                 </div>
             `;
             return;
@@ -1617,7 +1741,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const pct = ((cut.length / stockLength) * 100).toFixed(2);
                 let segClass = "seg-height";
 
-                if (cut.category === "ضلف") {
+                if (cut.category === "أدراج 2×8") {
+                    segClass = "seg-drawer";
+                } else if (cut.category === "ضلف") {
                     segClass = cut.type.includes("قائم") ? "seg-door-vert" : "seg-door-horiz";
                 } else {
                     if (cut.group === "عوارض" && !cut.type.includes("رف")) segClass = "seg-width";
@@ -1684,9 +1810,11 @@ document.addEventListener("DOMContentLoaded", () => {
         groupedList.forEach((item, index) => {
             const tr = document.createElement("tr");
             const isChassis = (item.category === "شاسيه");
-            const catBadge = isChassis 
+            const catBadge = isChassis
                 ? '<span class="cat-badge cat-chassis">🪵 عود شاسيه</span>'
-                : '<span class="cat-badge cat-door">🚪 عود ضلفة</span>';
+                : item.category === "أدراج 2×8"
+                    ? '<span class="cat-badge cat-drawer">🗄️ عود 2×8 درج</span>'
+                    : '<span class="cat-badge cat-door">🚪 عود ضلفة</span>';
 
             tr.innerHTML = `
                 <td style="color: var(--text-muted); text-align: center;">${index + 1}</td>
@@ -1702,13 +1830,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- Prepare Print Sheet ---
-    function preparePrintSheet(chassisOpt, doorOpt, groupedCuts) {
+    function preparePrintSheet(chassisOpt, doorOpt, drawerOpt, groupedCuts) {
         document.getElementById("printDate").textContent = new Date().toLocaleDateString("ar-EG");
         document.getElementById("printClientName").textContent = state.clientName || "بدون اسم";
         document.getElementById("printChassisBars").textContent = chassisOpt.totalBars;
         document.getElementById("printChassisLen").textContent = state.chassisStockLength;
         document.getElementById("printDoorBars").textContent = doorOpt.totalBars;
         document.getElementById("printDoorLen").textContent = state.doorStockLength;
+        document.getElementById("printDrawerBars").textContent = drawerOpt.totalBars;
 
         // 1. جدول العلب
         const unitsTbody = document.querySelector("#printUnitsTable tbody");
@@ -1726,6 +1855,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 const isSplitTag = door.isSplit ? " (مزدوجة)" : "";
                 return `ضلفة ${i+1}${isSplitTag}: (${w}×${h}سم - ${hType})`;
             }).join("<br>") || "بدون";
+            const drawerWidth = parseFloat(u.drawerOpeningWidth);
+            const drawersStr = u.unitType !== "upper" && u.hasDrawers
+                ? Number.isFinite(drawerWidth)
+                    ? `${u.drawerCount || 1} درج: (${(Math.max(0, drawerWidth - 2.6)).toFixed(1)} × ${(Math.max(0, parseFloat(u.depth || 0) - 3)).toFixed(1)} سم لكل درج)`
+                    : `${u.drawerCount || 1} درج: عرض الفتحة غير محدد`
+                : "بدون";
 
             const typeLabel = u.unitType === "upper" ? (u.hasDishRack ? `علوية (مطبقية ${u.dishRackSize}سم)` : "علوية") : "سفلية";
 
@@ -1736,6 +1871,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${u.partitions || 0}</td>
                 <td>${shelvesStr}</td>
                 <td>${doorsStr}</td>
+                <td>${drawersStr}</td>
                 <td>${u.quantity || 1}</td>
             `;
             unitsTbody.appendChild(row);
@@ -1746,7 +1882,9 @@ document.addEventListener("DOMContentLoaded", () => {
         cutsTbody.innerHTML = "";
         groupedCuts.forEach((c, idx) => {
             const row = document.createElement("tr");
-            const catLabel = c.category === "شاسيه" ? "عود شاسيه" : "عود ضلفة";
+            const catLabel = c.category === "شاسيه"
+                ? "عود شاسيه"
+                : c.category === "أدراج 2×8" ? "عود 2×8 درج" : "عود ضلفة";
             row.innerHTML = `
                 <td>${idx + 1}</td>
                 <td><strong>${c.length.toFixed(1)} سم</strong></td>
@@ -1785,6 +1923,19 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
             printDoorBarsContainer.appendChild(box);
         });
+
+        const printDrawerBarsContainer = document.getElementById("printDrawerBarsPlan");
+        printDrawerBarsContainer.innerHTML = "";
+        drawerOpt.bars.forEach(b => {
+            const box = document.createElement("div");
+            box.className = "print-bar-box";
+            const cutsStr = b.cuts.map(c => `${c.length.toFixed(1)} سم (${c.type})`).join(" + ");
+            box.innerHTML = `
+                <div class="print-bar-title">عود 2×8 درج #${b.barNumber} (طول ${b.stockLength} سم) - استغلال: ${b.efficiency}%:</div>
+                <div style="font-size: 0.85rem;">✂️ القطع: <strong>${cutsStr}</strong> | السقاطة (الباقي): <strong>${b.scrap.toFixed(1)} سم</strong></div>
+            `;
+            printDrawerBarsContainer.appendChild(box);
+        });
     }
 
     // --- Tabs Handling ---
@@ -1801,6 +1952,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Print & Save Action Buttons ---
     printJobBtn.addEventListener("click", () => {
+        if (calculationPending) {
+            recalculateAll();
+            markCalculationFresh();
+        }
         window.print();
     });
 
@@ -1820,4 +1975,5 @@ document.addEventListener("DOMContentLoaded", () => {
     loadSavedState();
     renderUnits();
     recalculateAll();
+    markCalculationFresh();
 });

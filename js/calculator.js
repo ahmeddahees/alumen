@@ -20,6 +20,10 @@ const AluminumCalculator = {
             partitions = 0,          // عدد الفواصل الرأسية
             shelvesList = [],        // قائمة الأرفف المخصصة [{ id, width, depth }]
             doorsList = [],          // قائمة الضلف [{ id, shelfWidth, handleType, isSplit, finalWidth }]
+            unitType = "lower",
+            hasDrawers = false,
+            drawerCount = 0,
+            drawerOpeningWidth = null,
             quantity = 1             // كمية الوحدات المتطابقة
         } = unit;
 
@@ -31,6 +35,7 @@ const AluminumCalculator = {
 
         const chassisPieces = [];
         const doorPieces = [];
+        const drawerPieces = [];
 
         for (let q = 1; q <= quantity; q++) {
             const unitLabel = quantity > 1 ? `${name} (#${q})` : name;
@@ -238,11 +243,38 @@ const AluminumCalculator = {
                     });
                 });
             }
+
+            if (unitType !== "upper" && hasDrawers && drawerOpeningWidth !== null && drawerOpeningWidth !== "" && drawerCount > 0) {
+                const drawerWidth = Math.max(0, parseFloat(drawerOpeningWidth) - 2.6);
+                const drawerDepth = Math.max(0, depth - 3);
+
+                for (let drawerIndex = 1; drawerIndex <= drawerCount; drawerIndex++) {
+                    for (let side = 0; side < 2; side++) {
+                        drawerPieces.push({
+                            unitName: unitLabel,
+                            category: "أدراج 2×8",
+                            type: "عرض درج 2×8",
+                            group: "أدراج",
+                            length: drawerWidth,
+                            desc: `عرض درج #${drawerIndex} (${drawerWidth.toFixed(1)} سم)`
+                        });
+                        drawerPieces.push({
+                            unitName: unitLabel,
+                            category: "أدراج 2×8",
+                            type: "عمق درج 2×8",
+                            group: "أدراج",
+                            length: drawerDepth,
+                            desc: `عمق درج #${drawerIndex} (${drawerDepth.toFixed(1)} سم)`
+                        });
+                    }
+                }
+            }
         }
 
         return {
             chassisPieces,
-            doorPieces
+            doorPieces,
+            drawerPieces
         };
     },
 

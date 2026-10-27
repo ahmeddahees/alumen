@@ -126,35 +126,6 @@
                 </div>
             </div>
 
-            <!-- 2. قوالب سريعة جاهزة -->
-            <div class="card templates-card">
-                <div class="card-title">
-                    <span class="icon">⚡</span>
-                    <h3>إضافة سريعة بنقرة واحدة</h3>
-                </div>
-                <div class="templates-grid">
-                    <button type="button" class="quick-template-btn" data-type="lower-std">
-                        <span class="tpl-icon">🗄️</span>
-                        <span class="tpl-title">علبة سفلية درفتين</span>
-                        <span class="tpl-desc">80 عرض × 85 ارتفاع × 60 عمق (رف + درفتين)</span>
-                    </button>
-                    <button type="button" class="quick-template-btn" data-type="sink">
-                        <span class="tpl-icon">🚿</span>
-                        <span class="tpl-title">علبة حوض سفلية</span>
-                        <span class="tpl-desc">100 عرض × 85 ارتفاع × 60 عمق (بدون رف + درفتين)</span>
-                    </button>
-                    <button type="button" class="quick-template-btn" data-type="upper-std">
-                        <span class="tpl-icon">🍽️</span>
-                        <span class="tpl-title">علبة علوية أرفف مختلفة</span>
-                        <span class="tpl-desc">90 عرض × 70 ارتفاع × 35 عمق (رفين بمقاسين)</span>
-                    </button>
-                    <button type="button" class="quick-template-btn" data-type="partition-std">
-                        <span class="tpl-icon">🚪</span>
-                        <span class="tpl-title">علبة فاصل رأسي (3 درف)</span>
-                        <span class="tpl-desc">120 عرض × 85 ارتفاع × 60 عمق (فاصل + 3 درف)</span>
-                    </button>
-                </div>
-            </div>
         </aside>
 
         <!-- Main Content Area -->
@@ -173,6 +144,12 @@
                         </svg>
                         <span>إضافة علبة جديدة</span>
                     </button>
+                    <button type="button" class="btn btn-calculate-header" id="headerCalculateBtn" title="احسب عدد الأعواد لجميع العلب">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        <span>احسب الأعواد ⚡</span>
+                    </button>
                     <button type="button" class="btn btn-danger-soft" id="clearAllUnitsBtn" title="تفريغ جميع العلب">
                         مسح الكل
                     </button>
@@ -182,6 +159,32 @@
             <!-- Units List Container -->
             <div class="units-container" id="unitsContainer">
                 <!-- Dynamically Rendered Unit Cards -->
+            </div>
+
+            <!-- Calculate Action Banner (أوبشن احسب عدد الأعواد) -->
+            <div class="calc-action-banner" id="calcActionBanner">
+                <div class="cab-content">
+                    <div class="cab-icon-wrap">
+                        <span class="cab-icon">🧮</span>
+                    </div>
+                    <div class="cab-text">
+                        <h3 class="cab-title">حساب إجمالي الأعواد ومخطط القص</h3>
+                        <p class="cab-desc">بعد إضافة وتعديل مقاسات وفواصل كل العلب، اضغط على زر "احسب" لحساب عدد أعواد الشاسيه والضلف ومخطط التقطيع بالكامل.</p>
+                    </div>
+                </div>
+                <div class="cab-btn-wrap">
+                    <button type="button" class="btn btn-calculate-main" id="calculateAllBtn">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        <span class="calc-btn-title">احسب عدد الأعواد</span>
+                        <span class="calc-btn-badge" id="calcUnitsCountBadge">0 علبة</span>
+                    </button>
+                    <div class="calc-status-indicator" id="calcStatusIndicator">
+                        <span class="status-dot"></span>
+                        <span class="status-text" id="calcStatusText">جاهز للحساب</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Optimization & Results Dashboard -->
@@ -213,13 +216,22 @@
                         </div>
                     </div>
 
+                    <div class="summary-card highlight-drawer">
+                        <div class="sc-icon">🗄️</div>
+                        <div class="sc-content">
+                            <span class="sc-label">أعواد 2×8 للأدراج</span>
+                            <span class="sc-value" id="drawerBarsDisplay">0</span>
+                            <span class="sc-sub" id="drawerStockSub">عود بطول 6.0 متر</span>
+                        </div>
+                    </div>
+
                     <!-- إجمالي الأمتار الصافية -->
                     <div class="summary-card">
                         <div class="sc-icon">📐</div>
                         <div class="sc-content">
                             <span class="sc-label">إجمالي الأمتار الصافية</span>
                             <span class="sc-value"><span id="totalUsedMetersDisplay">0.00</span> م</span>
-                            <span class="sc-sub">شاسيه: <span id="chassisMetersSub">0</span>م | ضلف: <span id="doorMetersSub">0</span>م</span>
+                            <span class="sc-sub">شاسيه: <span id="chassisMetersSub">0</span>م | ضلف: <span id="doorMetersSub">0</span>م | أدراج: <span id="drawerMetersSub">0</span>م</span>
                         </div>
                     </div>
 
@@ -229,7 +241,7 @@
                         <div class="sc-content">
                             <span class="sc-label">نسبة الاستغلال الإجمالية</span>
                             <span class="sc-value" id="efficiencyDisplay">0%</span>
-                            <span class="sc-sub">هالك الشاسيه: <span id="chassisWasteSub">0</span>م | الضلف: <span id="doorWasteSub">0</span>م</span>
+                            <span class="sc-sub">هالك الشاسيه: <span id="chassisWasteSub">0</span>م | الضلف: <span id="doorWasteSub">0</span>م | الأدراج: <span id="drawerWasteSub">0</span>م</span>
                         </div>
                     </div>
                 </div>
@@ -242,6 +254,9 @@
                         </button>
                         <button type="button" class="tab-btn" data-tab="doorsPlanTab">
                             🚪 مخطط أعواد الضلف (<span id="doorBarsTabBadge">0</span>)
+                        </button>
+                        <button type="button" class="tab-btn" data-tab="drawerPlanTab">
+                            🗄️ مخطط أعواد 2×8 للأدراج (<span id="drawerBarsTabBadge">0</span>)
                         </button>
                         <button type="button" class="tab-btn" data-tab="cutTableTab">
                             📋 جدول تجميع المقاسات للقص السريع
@@ -274,7 +289,17 @@
                         </div>
                     </div>
 
-                    <!-- Tab 3: Grouped Cutting Table -->
+                    <div class="tab-content" id="drawerPlanTab">
+                        <div class="bars-legend">
+                            <span class="legend-item"><span class="color-dot col-drawer"></span> قطع عرض وعمق الدرج 2×8</span>
+                            <span class="legend-item"><span class="color-dot col-waste"></span> السقاطة / المتبقي</span>
+                        </div>
+                        <div class="bars-list" id="drawerBarsListContainer">
+                            <!-- Visual Drawer Bars Injected Here -->
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: Grouped Cutting Table -->
                     <div class="tab-content" id="cutTableTab">
                         <div class="table-responsive">
                             <table class="cutting-table">
@@ -310,6 +335,7 @@
             <div class="print-totals">
                 <h2>أعواد الشاسيه: <span id="printChassisBars">0</span> عود (<span id="printChassisLen">600</span> سم)</h2>
                 <h2>أعواد الضلف: <span id="printDoorBars">0</span> عود (<span id="printDoorLen">600</span> سم)</h2>
+                <h2>أعواد 2×8 للأدراج: <span id="printDrawerBars">0</span> عود (600 سم)</h2>
             </div>
         </div>
 
@@ -323,13 +349,14 @@
                     <th>فواصل</th>
                     <th>الأرفف المخصصة (العرض × العمق)</th>
                     <th>الضلف (المقاس المحسوب ونوع المقبض)</th>
+                    <th>الأدراج (2×8)</th>
                     <th>العدد</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
 
-        <div class="print-section-title">2. جدول مقاسات التقطيع المجمع (شاسيه + ضلف)</div>
+        <div class="print-section-title">2. جدول مقاسات التقطيع المجمع (شاسيه + ضلف + أدراج)</div>
         <table class="print-table" id="printCutsTable">
             <thead>
                 <tr>
@@ -350,10 +377,31 @@
         <div class="print-section-title">4. خطة تقطيع أعواد قطاع الضلف (عود بعود)</div>
         <div id="printDoorBarsPlan"></div>
 
+        <div class="print-section-title">5. خطة تقطيع أعواد 2×8 للأدراج (عود بعود)</div>
+        <div id="printDrawerBarsPlan"></div>
+
         <div class="print-footer">
             <p>تم استخراج أمر التشغيل عبر حاسبة ورشة الألوميتال - التوقيع والملاحظات: ______________________</p>
         </div>
     </div>
+
+    <!-- Mobile Bottom Navigation Bar (Sticky on phones) -->
+    <nav class="mobile-bottom-bar" id="mobileBottomBar">
+        <button type="button" class="mobile-nav-btn mobile-add-btn" id="mobileAddUnitBtn" title="إضافة علبة مطبخ جديدة">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>+ علبة جديدة</span>
+        </button>
+        <button type="button" class="mobile-nav-btn mobile-calc-btn" id="mobileCalculateBtn" title="احسب عدد الأعواد لجميع العلب">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <span>احسب الأعواد ⚡</span>
+            <span class="mobile-badge" id="mobileUnitsCountBadge">0</span>
+        </button>
+    </nav>
 
     <!-- Notification Toast -->
     <div class="toast" id="toast"></div>
